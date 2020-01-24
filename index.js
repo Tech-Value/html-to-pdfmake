@@ -293,6 +293,9 @@ module.exports = function(htmlText, options) {
             if (element.getAttribute('height')) {
               ret.height = parseFloat(element.getAttribute('height'));
             }
+            if (!element.getAttribute('width') && !element.getAttribute('height')) {
+              ret.width = 350.0;
+            }
             // check if the element has a "style" attribute
             setComputedStyle(ret, element.getAttribute('style'));
             break;
