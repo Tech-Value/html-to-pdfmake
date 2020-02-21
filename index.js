@@ -37,28 +37,28 @@ module.exports = function(htmlText, options) {
 
   // set default styles
   var defaultStyles = {
-    b: { bold: true },
-    strong: { bold: true },
-    u: { decoration: 'underline' },
-    s: { decoration: 'lineThrough' },
-    em: { italics: true },
-    i: { italics: true },
-    h1: { fontSize: 24, bold: true, marginBottom: 5 },
-    h2: { fontSize: 22, bold: true, marginBottom: 5 },
-    h3: { fontSize: 20, bold: true, marginBottom: 5 },
-    h4: { fontSize: 18, bold: true, marginBottom: 5 },
-    h5: { fontSize: 16, bold: true, marginBottom: 5 },
-    h6: { fontSize: 14, bold: true, marginBottom: 5 },
-    a: { color: 'blue', decoration: 'underline' },
-    strike: { decoration: 'lineThrough' },
-    p: { margin: [0, 5, 0, 10] },
-    ul: { marginBottom: 5 },
-    li: { marginLeft: 5 },
-    table: { marginBottom: 5 },
-    th: { bold: true, fillColor: '#EEEEEE' },
-  };
+    b: {bold:true},
+    strong: {bold:true},
+    u: {decoration:'underline'},
+    s: {decoration: 'lineThrough'},
+    em: {italics:true},
+    i: {italics:true},
+    h1: {fontSize:24, bold:true, marginBottom:5},
+    h2: {fontSize:22, bold:true, marginBottom:5},
+    h3: {fontSize:20, bold:true, marginBottom:5},
+    h4: {fontSize:18, bold:true, marginBottom:5},
+    h5: {fontSize:16, bold:true, marginBottom:5},
+    h6: {fontSize:14, bold:true, marginBottom:5},
+    a: {color:'blue', decoration:'underline'},
+    strike: {decoration: 'lineThrough'},
+    p: {margin:[0, 5, 0, 10]},
+    ul: {marginBottom:5},
+    li: {marginLeft:5},
+    table: {marginBottom:5},
+    th: {bold:true, fillColor:'#EEEEEE'}
+  }
 
-  var inlineTags = ['p', 'li', 'span', 'strong', 'em', 'b', 'i', 'u'];
+  var inlineTags = [ 'p', 'li', 'span', 'strong', 'em', 'b', 'i', 'u', 'th', 'td' ];
 
   /**
    * Permit to change the default styles based on the options
@@ -117,14 +117,15 @@ module.exports = function(htmlText, options) {
    * Converts a single HTML element to pdfmake, calls itself recursively for child html elements
    *
    * @param element can be an HTML element (<p>) or plain text ("Hello World")
-   * @param currentParagraph usually holds the parent element, to allow nested structures
-   * @param styles holds the style attributes of HTML elements (`<div style="color: green">...`)
+   * @param parentNode the parent node for the current element
+   * @param parents Array of node names of all the parents for the element
    * @returns the doc def to the given element in consideration to the given paragraph and styles
    */
-  var parseElement = function(element, parentNode) {
+  var parseElement = function(element, parentNode, parents) {
     var nodeName = element.nodeName.toLowerCase();
-    var parentNodeName = parentNode ? parentNode.nodeName.toLowerCase() : '';
-    var ret, text, cssClass;
+    var parentNodeName = (parentNode ? parentNode.nodeName.toLowerCase() : '');
+    var ret, text, cssClass, dataset, key, dist, isInlineTag;
+    parents = parents || [];
 
     // check the node type
     switch (element.nodeType) {
@@ -173,25 +174,33 @@ module.exports = function(htmlText, options) {
       case 1: {
         // ELEMENT_NODE
         ret = [];
-
+        parents.push(nodeName);
         // check children
         // if it's a table cell (TH/TD) with an empty content, we need to count it
         if (element.childNodes.length === 0 && (nodeName === 'th' || nodeName === 'td')) ret.push({ text: '' });
         else {
           [].forEach.call(element.childNodes, function(child) {
-            child = parseElement(child, element);
+            child = parseElement(child, element, parents);
             if (child) {
               if (Array.isArray(child) && child.length === 1) child = child[0];
               ret.push(child);
             }
           });
+          parents.pop();
         }
 
         if (ret.length === 0) ret = '';
 
         // check which kind of tag we have
         switch (nodeName) {
-          case 'br': {
+          case "svg": {
+            ret = {
+              svg: element.outerHTML
+            }
+            ret.style = ['html-'+nodeName];
+            break;
+          }
+          case "br": {
             // for BR we return '\n'
             ret = '\n';
             break;
@@ -220,9 +229,9 @@ module.exports = function(htmlText, options) {
             ret = { _: ret, table: { body: [] } };
             ret._.forEach(function(re) {
               if (re.stack) {
-                var td = [],
-                  rowspan = {};
+                var td = [], rowspan = {};
                 re.stack.forEach(function(r, indexRow) {
+                  var c, cell, i, indexCell;
                   if (r.stack) {
                     // do we have a rowspan to apply from previous rows?
                     if (rowspan[indexRow]) {
@@ -237,16 +246,18 @@ module.exports = function(htmlText, options) {
                     }
 
                     // insert empty cells due to colspan
-                    r.stack.forEach(function(cell, index) {
+                    for (c=0, cell; c<r.stack.length;) {
+                      cell = r.stack[c];
                       if (cell.colSpan > 1) {
-                        for (var i = 0; i < cell.colSpan - 1; i++) {
-                          r.stack.splice(index + 1, 0, '');
+                        for (i=0; i<cell.colSpan-1; i++) {
+                          r.stack.splice(c+1, 0, "")
                         }
-                      }
-                    });
+                        c += cell.colSpan;
+                      } else c++;
+                    }
 
                     // check rowspan for the current row in order to then apply it to the next ones
-                    var indexCell = 0;
+                    indexCell = 0;
                     r.stack.forEach(function(cell) {
                       if (cell.rowSpan) {
                         for (var i = 0; i < cell.rowSpan; i++) {
@@ -262,8 +273,8 @@ module.exports = function(htmlText, options) {
                     td.push(r);
                     // insert empty cells due to colspan
                     if (r.colSpan > 1) {
-                      for (var i = 0; i < r.colSpan - 1; i++) {
-                        td.push('');
+                      for (i=0; i<r.colSpan-1; i++) {
+                        td.push("");
                       }
                     }
                   }
@@ -304,10 +315,10 @@ module.exports = function(htmlText, options) {
         // add a custom class to let the user customize the element
         if (ret) {
           if (Array.isArray(ret)) {
-            // add a custom class to let the user customize the element
             // "tr" elements should always contain an array
-            if (ret.length === 1 && nodeName !== 'tr') {
-              ret = ret[0];
+            if (ret.length === 1 && nodeName !== "tr") {
+              ret=ret[0];
+              if (typeof ret === "string") ret={text:ret};
               if (ret.text) {
                 applyDefaultStyle(ret, nodeName);
                 setComputedStyle(ret, element.getAttribute('style'));
@@ -330,9 +341,28 @@ module.exports = function(htmlText, options) {
               }
               ret.style = ['html-' + nodeName];
             }
-          } else if (ret.table || ret.ol || ret.ul) {
-            // for TABLE / UL / OL
-            ret.style = ['html-' + nodeName];
+
+            // check if we have inherent styles to apply when a text is inside several <tag>
+            applyParentsStyle(ret, element);
+
+            // for 'td' and 'th' we check if we have "rowspan" or "colspan"
+            if (nodeName === "td" || nodeName === "th") {
+              if (element.getAttribute("rowspan")) ret.rowSpan = element.getAttribute("rowspan")*1;
+              if (element.getAttribute("colspan")) ret.colSpan = element.getAttribute("colspan")*1;
+            }
+
+            // is there any class to this element?
+            cssClass = element.getAttribute("class");
+            if (cssClass) {
+              ret.style = (ret.style||[]).concat(cssClass.split(' '));
+            }
+
+            // check if the element has a "style" attribute
+            if (ret.text) {
+              setComputedStyle(ret, element.getAttribute("style"));
+            }
+          } else if (ret.table || ret.ol || ret.ul) { // for TABLE / UL / OL
+            ret.style = ['html-'+nodeName];
             // is there any class to this element?
             cssClass = element.getAttribute('class');
             if (cssClass) {
@@ -340,6 +370,14 @@ module.exports = function(htmlText, options) {
             }
             // do we have a default style to apply?
             applyDefaultStyle(ret, nodeName);
+          }
+
+          if (element.dataset && element.dataset.pdfmake) {
+            dataset = JSON.parse(element.dataset.pdfmake);
+            dist = ret[nodeName] || ret;
+            for (key in dataset) {
+              dist[key] = dataset[key];
+            }
           }
 
           // retrieve the class from the parent

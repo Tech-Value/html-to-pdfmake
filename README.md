@@ -20,9 +20,13 @@ This module will convert some basic and valid HTML code to its equivalent in *pd
 var pdfMake = require("pdfmake/build/pdfmake");
 var pdfFonts = require("pdfmake/build/vfs_fonts");
 pdfMake.vfs = pdfFonts.pdfMake.vfs;
-var htmlToPdfMake = require("html-to-pdfmake");
+var htmlToPdfmake = require("html-to-pdfmake");
+// or:
+// import htmlToPdfmake from "html-to-pdfmake"
+// or, if used directly in a web browser:
+// <script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/docs/browser.js"></scrpipt>
 
-var html = htmlToPdfMake(`
+var html = htmlToPdfmake(`
   <div>
     <h1>My title</h1>
     <p>
@@ -106,6 +110,7 @@ The below HTML tags are supported:
   - TABLE / THEAD / TBODY / TFOOTER / TR / TH / TD
   - H1 to H6
   - IMG
+  - SVG
 
 ### Default styles
 
@@ -147,7 +152,7 @@ Each converted element will have an associated style-class called `html-tagname`
 For example, if you want all &lt;STRONG&gt; tags to be highlighted with a yellow backgroud you can use `html-strong` in the `styles` definition:
 
 ```javascript
-var html = htmlToPdfMake(`
+var html = htmlToPdfmake(`
   <p>
     This sentence has <strong>a highlighted word</strong>, but not only.
   </p>
@@ -172,7 +177,7 @@ var pdfDocGenerator = pdfMake.createPdf(docDefinition);
 The `class` and `styles` for the elements will also be added.
 
 ```javascript
-var html = htmlToPdfMake(`
+var html = htmlToPdfmake(`
   <p>
     This sentence has <span style="font-weight:bold" class="red">a bold and red word</span>.
   </p>
@@ -233,7 +238,7 @@ To make it work, you have to either delete the default styles, or change it with
 
 Example: you want `<li>` to not have a margin-left, and `<a>` to be 'purple' and without 'underline' style:
 ```javascript
-var html = htmlToPdfMake('<ul><li>this is <a href="...">a link</a></li><li>another item</li><li class="with-margin">3rd item with a margin</li></ul>', {
+var html = htmlToPdfmake('<ul><li>this is <a href="...">a link</a></li><li>another item</li><li class="with-margin">3rd item with a margin</li></ul>', {
   defaultStyles:{ // change the default styles
     a:{ // for <A>
       color:'purple', // all links should be 'purple'
@@ -261,14 +266,66 @@ The `<img>` tag is supported, however the `src` attribute must already be a **ba
 
 This is too complex and out of the scope of this module to find and convert the image source to a base64 format. You can check [this Stackoverflow question](https://stackoverflow.com/questions/934012/get-image-data-in-javascript/42916772#42916772) to know the different ways to get a base64 encoded content from an image.
 
+### page break
+
+You can use [`pageBreakBefore`](https://pdfmake.github.io/docs/document-definition-object/page/) and a CSS class that you'll apply to your elements to identify when to add a page break:
+```javascript
+var html = htmlToPdfmake(`
+  <div>
+    <h1>My title on page 1</h1>
+    <p>
+      This is my paragraph on page 1.
+    </p>
+    <h1 class="pdf-pagebreak-before">My title on page 2</h1>
+    <p>This is my paragraph on page 2.</p>
+  </div>
+`);
+
+var docDefinition = {
+  content: [
+    html
+  ],
+  pageBreakBefore: function(currentNode) {
+    return currentNode.style && currentNode.style.indexOf('pdf-pagebreak-before') > -1;
+  }
+};
+
+var pdfDocGenerator = pdfMake.createPdf(docDefinition);
+```
+
+See [example.js](example.js) to see another example.
+
+### Special properties
+
+PDFMake provides some special attributes, like `widths` or `heights` for `table`, or `fit` for `image`, and more.
+To apply these special attributes, you have to use the attribute `data-pdfmake` on your HTML elements, and then pass the special attributes as a JSON string.
+
+```html
+<!-- Example with `widths:[100,"*","auto"]` and `heights:40` to apply to a `table`. -->
+
+<table data-pdfmake="{&quot;widths&quot;:[100,&quot;*&quot;,&quot;auto&quot;],&quot;heights&quot;:40}">
+  <tr>
+    <td colspan="3">Table with <b>widths=[100,"*","auto"]</b> and <b>heights=40</b></th>
+  </tr>
+  <tr>
+    <td>Cell1</td>
+    <td>Cell2</td>
+    <td>Cell3</td>
+  </tr>
+</table>
+```
+
+The expression provided by `data-pdfmake` must be a valid JSON string because it will be translated with `JSON.parse()`.
+
 ## Examples
 
 You can find more examples in [example.js](example.js) which will create [example.pdf](example.pdf):
 
 ```bash
+npm install
 node example.js
 ```
 
 ## Donate
 
-You can support my work by [making a donation](https://www.paypal.me/aymkdn). Thank you!
+You can support my work by [making a donation](https://www.paypal.me/aymkdn), or by visiting my [Github Sponsors page](https://github.com/sponsors/Aymkdn). Thank you!
