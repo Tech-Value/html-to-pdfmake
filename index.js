@@ -205,13 +205,43 @@ module.exports = function(htmlText, options) {
             ret = '\n';
             break;
           }
-          case 'ol':
-          case 'ul': {
-            if (!!ret) {
-              ret = { _: ret };
-            } else {
-              ret = { _: [] };
+          case "hr": {
+            // default style for the HR
+            var styleHR = {
+              width: 514,
+              type: "line",
+              margin: [0, 12, 0, 12],
+              thickness: 0.5,
+              color: "#000000",
+              left: 0
+            };
+            if (element.dataset && element.dataset.pdfmake) {
+              dataset = JSON.parse(element.dataset.pdfmake);
+              for (key in dataset) {
+                styleHR[key] = dataset[key];
+              }
             }
+
+            ret = {
+              margin: styleHR.margin,
+              canvas: [
+                {
+                  type: styleHR.type,
+                  x1: styleHR.left,
+                  y1: 0,
+                  x2: styleHR.width,
+                  y2: 0,
+                  lineWidth: styleHR.thickness,
+                  lineColor: styleHR.color
+                }
+              ]
+            };
+
+            break;
+          }
+          case "ol":
+          case "ul": {
+            ret = {"_":ret};
             ret[nodeName] = ret._;
             delete ret._;
             // add a custom class to let the user customize the element
