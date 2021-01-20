@@ -37,6 +37,9 @@ module.exports = function(htmlText, options) {
   var wndw = (options && options.window ? options.window : window);
   var tableAutoSize = (options && typeof options.tableAutoSize === "boolean" ? options.tableAutoSize : false);
 
+  // Used with the size attribute on the font elements to calculate relative font size
+  var fontSizes = (options && Array.isArray(options.fontSizes) ? options.fontSizes : [10, 14, 16, 18, 20, 24, 28]);
+
   // set default styles
   var defaultStyles = {
     b: {bold:true},
@@ -72,9 +75,15 @@ module.exports = function(htmlText, options) {
         } else {
           for (var k in options.defaultStyles[keyStyle]) {
             // if we want to delete a specific property
-            if (!options.defaultStyles[keyStyle][k]) delete defaultStyles[keyStyle][k];
+            if (options.defaultStyles[keyStyle][k] === '') delete defaultStyles[keyStyle][k];
             else defaultStyles[keyStyle][k] = options.defaultStyles[keyStyle][k];
           }
+        }
+      } else {
+        // if we add default styles
+        defaultStyles[keyStyle] = {}
+        for (var ks in options.defaultStyles[keyStyle]) {
+          defaultStyles[keyStyle][ks] = options.defaultStyles[keyStyle][ks];
         }
       }
     }
@@ -124,8 +133,8 @@ module.exports = function(htmlText, options) {
         if (element.textContent) {
           text = element.textContent.replace(/\n(\s+)?/g, "");
 
-          // for table, thead, tbody, tfoot, tr: remove all empty space
-          if (['TABLE','THEAD','TBODY','TFOOT','TR'].indexOf(parents[parents.length-1].nodeName) > -1) text = text.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
+          // for table, thead, tbody, tfoot, tr, ul, ol: remove all empty space
+          if (['TABLE','THEAD','TBODY','TFOOT','TR','UL','OL'].indexOf(parents[parents.length-1].nodeName) > -1) text = text.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
           if (text) {
             ret = {'text':text};
             ret = applyStyle({ret:ret, parents:parents});
@@ -361,6 +370,29 @@ module.exports = function(htmlText, options) {
             ret.link = element.getAttribute("href");
             break;
           }
+          case "FONT": {
+            if (element.getAttribute("color")) {
+              ret.color = parseColor(element.getAttribute("color"));
+            }
+            // Checking if the element has a size attribute
+            if (element.getAttribute("size")) {
+              // Getting and sanitizing the size value – it should be included between 1 and 7
+              var size = Math.min(Math.max(1, parseInt(element.getAttribute("size"))), 7);
+
+              // Getting the relative fontsize
+              var fontSize = Math.max(fontSizes[0], fontSizes[size - 1]);
+
+              // Assigning the font size
+              ret.fontSize = fontSize;
+            }
+
+            // Applying inherited styles
+            ret = applyStyle({
+              ret: ret,
+              parents: parents.concat([element]),
+            });
+            break;
+          }
         }
         if (Array.isArray(ret.text) && ret.text.length === 1 && ret.text[0].text && !ret.text[0].nodeName) {
           ret.text = ret.text[0].text;
@@ -532,7 +564,7 @@ module.exports = function(htmlText, options) {
             break;
           }
           case "font-family": {
-            ret.push({key:"font", value:value.replace(/"|^'|'$/g,"")});
+            ret.push({key:"font", value:value.split(',')[0].replace(/"|^'|^\s*|\s*$|'$/g,"").replace(/^([a-z])/g, function (g) { return g[0].toUpperCase() }).replace(/ ([a-z])/g, function (g) { return g[1].toUpperCase() })});
             break;
           }
           case "color": {
@@ -542,6 +574,10 @@ module.exports = function(htmlText, options) {
           case "background-color": {
             // if TH/TD and key is 'background', then we use 'fillColor' instead
             ret.push({key:(nodeName === 'TD' || nodeName === 'TH' ? "fillColor" : "background"), value:parseColor(value)})
+            break;
+          }
+          case "text-indent": {
+            ret.push({key:"leadingIndent", value:convertToUnit(value)})
             break;
           }
           default: {
@@ -650,7 +686,7 @@ module.exports = function(htmlText, options) {
   };
 
   /**
-   * Convert 'px'/'rem' to 'pt', and return false for the other ones. If it's only a number, it will just return it
+   * Convert 'px'/'rem'/'cm' to 'pt', and return false for the other ones. If it's only a number, it will just return it
    *
    * @param  {String} val The value with units (e.g. 12px)
    * @return {Number|Boolean} Return the pt value, or false
@@ -658,7 +694,7 @@ module.exports = function(htmlText, options) {
   var convertToUnit = function(val) {
     // if it's just a number, then return it
     if (!isNaN(parseFloat(val)) && isFinite(val)) return val*1;
-    var mtch = (val+"").trim().match(/^(\d+(\.\d+)?)(pt|px|rem)$/);
+    var mtch = (val+"").trim().match(/^(\d+(\.\d+)?)(pt|px|rem|cm)$/);
     // if we don't have a number with supported units, then return false
     if (!mtch) return false;
     val = mtch[1];
@@ -669,6 +705,10 @@ module.exports = function(htmlText, options) {
       }
       case 'rem':{
         val *= 12; // default font-size is 12pt
+        break;
+      }
+      case 'cm':{
+        val = Math.round(val * 28.34646); // 1cm => 28.34646
         break;
       }
     }

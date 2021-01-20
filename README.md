@@ -1,6 +1,6 @@
 # html-to-pdfmake
 
-[pdfmake](https://pdfmake.github.io/docs/) permits to easily create a PDF with JavaScript, but the support of HTML was missing. After [reviewing issue #205](https://github.com/bpampuch/pdfmake/issues/205) I decided to create a module to handle this feature.
+[pdfmake](https://pdfmake.github.io/docs/) permits to easily create a PDF with JavaScript; however there is no support of HTML code, so I decided to create a module to handle this feature.
 
 ## Online Demo
 
@@ -103,7 +103,7 @@ it will return:
 ### Browser
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/docs/browser.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js"></script>
 ```
 
 Example:
@@ -117,7 +117,7 @@ Example:
   <script src='https://cdn.jsdelivr.net/npm/pdfmake@latest/build/pdfmake.min.js'></script>
   <script src='https://cdn.jsdelivr.net/npm/pdfmake@latest/build/vfs_fonts.min.js'></script>
   <!-- html-to-pdfmake file: -->
-  <script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/docs/browser.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js"></script>
 </head>
 <body>
   […]
@@ -143,6 +143,10 @@ If you use Node, then you'll have to pass the `window` object ([see below](https
 #### `defaultStyles`
 
 You can overwrite the default styles using `defaultStyles` ([see below](https://github.com/Aymkdn/html-to-pdfmake#default-styles)).
+
+#### `fontSizes`
+
+You can overwrite the default sizes for the old HTML4 tag `<font>` by using `fontSizes`. It must be an array with 7 values ([see below](https://github.com/Aymkdn/html-to-pdfmake#default-styles)).
 
 #### `tableAutoSize`
 
@@ -184,6 +188,7 @@ The below HTML tags are supported:
   - UL / OL / LI
   - TABLE / THEAD / TBODY / TFOOTER / TR / TH / TD
   - H1 to H6
+  - FONT
   - IMG
   - SVG
 
@@ -217,6 +222,8 @@ Here is the list of defaults styles:
     th: {bold:true, fillColor:'#EEEEEE'}
   }
 ```
+
+For the old HTML4 tag `<font>`, the `size` attributes can have a value from 1 to 7, which will be converted to 10pt, 14pt, 16pt, 18pt, 20pt, 24pt, or 28pt.
 
 **Please, note that the above default styles are stronger than the ones defined in the style classes.** Read below how to overwrite them.
 
