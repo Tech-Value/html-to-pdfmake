@@ -1,30 +1,34 @@
 # html-to-pdfmake
 
-[pdfmake](https://pdfmake.github.io/docs/) permits to easily create a PDF with JavaScript, but the support of HTML was missing. After [reviewing issue #205](https://github.com/bpampuch/pdfmake/issues/205) I decided to create a module to handle this feature.
+[pdfmake](https://pdfmake.github.io/docs/) permits to easily create a PDF with JavaScript; however there is no support of HTML code, so I decided to create a module to handle this feature.
 
 ## Online Demo
 
 You can find the online demo at <a href="https://aymkdn.github.io/html-to-pdfmake/index.html">https://aymkdn.github.io/html-to-pdfmake/index.html</a>
 
-## Install
+## How to use
+
+This module will convert some basic and valid HTML code to its equivalent in *pdfmake*.
+
+### Node
 
 ```bash
 npm install html-to-pdfmake
 ```
 
-## How to use
+```javascript
+var htmlToPdfmake = require("html-to-pdfmake");
+// or:
+// import htmlToPdfmake from "html-to-pdfmake"
+```
 
-This module will convert some basic and valid HTML code to its equivalent in *pdfmake*.
+Example:
 
 ```javascript
 var pdfMake = require("pdfmake/build/pdfmake");
 var pdfFonts = require("pdfmake/build/vfs_fonts");
 pdfMake.vfs = pdfFonts.pdfMake.vfs;
 var htmlToPdfmake = require("html-to-pdfmake");
-// or:
-// import htmlToPdfmake from "html-to-pdfmake"
-// or, if used directly in a web browser:
-// <script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/docs/browser.js"></scrpipt>
 
 var html = htmlToPdfmake(`
   <div>
@@ -96,7 +100,82 @@ it will return:
  */
 ```
 
+### Browser
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js"></script>
+```
+
+Example:
+```html
+<!doctype html>
+<html lang='en'>
+<head>
+  <meta charset='utf-8'>
+  <title>my example</title>
+  <!-- pdfmake files: -->
+  <script src='https://cdn.jsdelivr.net/npm/pdfmake@latest/build/pdfmake.min.js'></script>
+  <script src='https://cdn.jsdelivr.net/npm/pdfmake@latest/build/vfs_fonts.min.js'></script>
+  <!-- html-to-pdfmake file: -->
+  <script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js"></script>
+</head>
+<body>
+  […]
+  <script>
+    var val = htmlToPdfmake("your html code here");
+    var dd = {content:val};
+    pdfMake.createPdf(dd).download();
+  </script>
+</body>
+</html>
+```
+
 ## Documentation
+
+### Options
+
+Some options can be passed to `htmlToPdfmake` function as a second argument.
+
+#### `window`
+
+If you use Node, then you'll have to pass the `window` object ([see below](https://github.com/Aymkdn/html-to-pdfmake#use-with-node)).
+
+#### `defaultStyles`
+
+You can overwrite the default styles using `defaultStyles` ([see below](https://github.com/Aymkdn/html-to-pdfmake#default-styles)).
+
+#### `fontSizes`
+
+You can overwrite the default sizes for the old HTML4 tag `<font>` by using `fontSizes`. It must be an array with 7 values ([see below](https://github.com/Aymkdn/html-to-pdfmake#default-styles)).
+
+#### `tableAutoSize`
+
+By passing `tableAutoSize` with `true`, then the program will try to define `widths` and `heights` for the tables, based on CSS properties `width` and `height` that have been provided to `TH` or `TD`.
+
+Example:
+```javascript
+var html = htmlToPdfmake(`<table>
+  <tr style="height:100px">
+    <td style="width:250px">height:100px / width:250px</td>
+    <td>height:100px / width:'auto'</td>
+  </tr>
+  <tr>
+    <td style="width:100px">Here it will use 250px for the width because we have to use the largest col's width</td>
+    <td style="height:200px">height:200px / width:'auto'</td>
+  </tr>
+</table>`, {
+  tableAutoSize:true
+});
+
+// it will return something like:
+[ {
+    "table": {
+      "body": [ [ … ] ],
+      "widths": [ 188, "auto" ],
+      "heights": [ 75, 151 ]
+    }
+} ]
+```
 
 ### HTML tags supported
 
@@ -109,6 +188,7 @@ The below HTML tags are supported:
   - UL / OL / LI
   - TABLE / THEAD / TBODY / TFOOTER / TR / TH / TD
   - H1 to H6
+  - FONT
   - IMG
   - SVG
 
@@ -142,6 +222,8 @@ Here is the list of defaults styles:
     th: {bold:true, fillColor:'#EEEEEE'}
   }
 ```
+
+For the old HTML4 tag `<font>`, the `size` attributes can have a value from 1 to 7, which will be converted to 10pt, 14pt, 16pt, 18pt, 20pt, 24pt, or 28pt.
 
 **Please, note that the above default styles are stronger than the ones defined in the style classes.** Read below how to overwrite them.
 
@@ -260,6 +342,16 @@ var docDefinition = {
 };
 ```
 
+#### Units
+
+PDFMake uses `pt` units for the numbers. `html-to-pdfmake` will check the inline style to see if a number with unit is provided, then it will convert it to `pt`.
+
+It only works for `px`, `pt` and `rem` (for `rem` it's based on `1rem = 16px`);
+
+Examples:
+  - `font-size:16px` will be converted to `fontSize:12`
+  - `margin:1em` will be ignored because it's not a valid unit
+
 ### `<img>`
 
 The `<img>` tag is supported, however the `src` attribute must already be a **base64 encoded content** (as describe in the [PDFMake documentation](https://pdfmake.github.io/docs/document-definition-object/images/)).
@@ -331,6 +423,38 @@ An `<hr>` can also be customized using `data-pdfmake`. Some default styles are a
 ```
 
 See the [example.js](example.js) file to see a `<hr>` example.
+
+## Use with Node
+
+To use it in a Node script you need to install `jsdom`:
+```bash
+npm install jsdom
+```
+
+Then in your JS file:
+```javascript
+var pdfMake = require("pdfmake/build/pdfmake");
+var pdfFonts = require("pdfmake/build/vfs_fonts");
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
+var fs = require('fs');
+var jsdom = require("jsdom");
+var { JSDOM } = jsdom;
+var { window } = new JSDOM("");
+var htmlToPdfMake = require("html-to-pdfmake");
+
+var html = htmlToPdfMake(`<div>the html code</div>`, {window:window});
+
+var docDefinition = {
+  content: [
+    html
+  ]
+};
+
+var pdfDocGenerator = pdfMake.createPdf(docDefinition);
+pdfDocGenerator.getBuffer(function(buffer) {
+  fs.writeFileSync('example.pdf', buffer);
+});
+```
 
 ## Examples
 
