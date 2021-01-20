@@ -359,7 +359,14 @@ module.exports = function(htmlText, options) {
             ret.image = element.getAttribute("src");
             delete ret.stack;
             delete ret.text;
-            if (!element.getAttribute("width") {
+            // check if we have 'width' and 'height'
+            if (element.getAttribute('width')) {
+              ret.width = parseFloat(element.getAttribute('width'));
+            }
+            if (element.getAttribute('height')) {
+              ret.height = parseFloat(element.getAttribute('height'));
+            }
+            if (!element.getAttribute('width') && !element.getAttribute('height')) {
               ret.width = 350.0;
             }
             // apply all the inhirent classes and styles from the parents, or for the current element
